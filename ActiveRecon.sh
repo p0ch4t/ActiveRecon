@@ -20,13 +20,13 @@ echo -e $red"
 "$end
 
 # Environment Variables
-bot_token=$bot_telegram_token
-chat_ID=$chat_ID
+bot_token=$(printenv bot_telegram_token)
+chat_ID=$(printenv chat_ID)
 url="https://api.telegram.org/bot$bot_token/sendMessage"
 date=$(date '-I')
-URLSCAN_API_KEY=$URLSCAN_API_KEY
-VTCLI_APIKEY=$VTCLI_APIKEY
-OrganizationName=$OrganizationName
+URLSCAN_API_KEY=$(printenv URLSCAN_API_KEY)
+VTCLI_APIKEY=$(printenv VTCLI_APIKEY)
+OrganizationName=$(printenv OrganizationName)
 
 # Functions
 
@@ -39,49 +39,53 @@ check_root(){
 
 check_dependencies(){
 	echo -e $green"[+] "$end"Chequeando dependencias...\n"
-	mkdir -p /opt/tools_ActiveRecon
+    mkdir -p /opt/tools_ActiveRecon
     mkdir -p /opt/BugBounty/Programs
     mkdir -p /opt/BugBounty/Targets
-	grep 'deb http://http.kali.org/kali kali-rolling main contrib non-free' /etc/apt/sources.list > /dev/null
-	if [ "$(echo $?)" -ne "0" ]; then
-		echo "deb http://http.kali.org/kali kali-rolling main contrib non-free" | sudo tee /etc/apt/sources.list > /dev/null
-		wget -q -O - archive.kali.org/archive-key.asc | sudo apt-key add &> /dev/null
-		sudo apt update &> /dev/null
-	fi
-	export PATH="$PATH:/opt/tools_ActiveRecon"
-	dependencies=(findomain assetfinder amass subfinder httprobe AnalyticsIDCoincidence.py waybackurl aquatone vt zile.py linkfinder.py urlscan subjs dirsearch.py sub404.py)
+	export PATH="$PATH:/opt/tools_ActiveRecon:/root/go/bin"
+	dependencies=(go unzip findomain assetfinder amass subfinder httprobe AnalyticsIDCoincidence.py ScanOpenRedirect.py waybackurl aquatone vt zile.py linkfinder.py urlscan subjs dirsearch.py sub404.py)
 	for dependency in "${dependencies[@]}"; do
 		which $dependency > /dev/null 2>&1
 		if [ "$(echo $?)" -ne "0" ]; then
 			echo -e $red"[X] $dependency "$end"no esta instalado."
 			case $dependency in
+                go)
+                    wget -q --show-progress http://mirror.archlinuxarm.org/aarch64/community/go-2:1.19.4-1-aarch64.pkg.tar.xz -O /golang.tar.xz && tar -xf /golang.tar.xz -C 2>/dev/null / && rm /golang.tar.xz && export PATH=$PATH:~/go/bin && echo -e $green"[+] "$end"Golang instalado!"
+                    ;;
+                unzip)
+                    wget -q --show-progress http://mirror.archlinuxarm.org/aarch64/extra/unzip-6.0-19-aarch64.pkg.tar.xz -O /unzip.tar.xz && tar -xf /unzip.tar.xz -C 2>/dev/null / && rm /unzip.tar.xz && echo -e $green"[+] "$end"Unzip instalado!"
+                    ;;
 				findomain)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					wget -q --show-progress https://github.com/Findomain/Findomain/releases/download/8.2.1/findomain-aarch64.zip -O /opt/tools_ActiveRecon/findomain.zip && unzip -qq /opt/tools_ActiveRecon/findomain.zip -d /opt/tools_ActiveRecon/ && rm /opt/tools_ActiveRecon/findomain.zip && chmod +x /opt/tools_ActiveRecon/findomain && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				assetfinder)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					sudo apt install $dependency -y > /dev/null 2>&1 && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					go install github.com/tomnomnom/assetfinder@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				amass)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					sudo apt install $dependency -y > /dev/null 2>&1 && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					go install github.com/OWASP/Amass/v3/cmd/amass@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				subfinder)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					sudo apt install $dependency -y > /dev/null 2>&1 && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				httprobe)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					sudo apt install $dependency -y > /dev/null 2>&1 && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					go install github.com/tomnomnom/httprobe@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
-                AnalyticsIDCoincidence)
+                AnalyticsIDCoincidence.py)
                     echo -e "${yellow}[..]${end} Instalando $dependency"
                     wget -q --show-progress https://raw.githubusercontent.com/p0ch4t/AnalyticsIDCoincidence/main/AnalyticsIDCoincidence.py -O /opt/tools_ActiveRecon/AnalyticsIDCoincidence.py && chmod +x /opt/tools_ActiveRecon/AnalyticsIDCoincidence.py && sed -i '1s/^/#!\/usr\/bin\/python3\n/' /opt/tools_ActiveRecon/AnalyticsIDCoincidence.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 				    ;;
+                ScanOpenRedirect.py)
+                    echo -e "${yellow}[..]${end} Instalando $dependency"
+                    wget -q --show-progress https://raw.githubusercontent.com/p0ch4t/ScanOpenRedirect/main/ScanOpenRedirect.py -O /opt/tools_ActiveRecon/ScanOpenRedirect.py && chmod +x /opt/tools_ActiveRecon/ScanOpenRedirect.py && sed -i '1s/^/#!\/usr\/bin\/python3\n/' /opt/tools_ActiveRecon/ScanOpenRedirect.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+                    ;;
                 waybackurl)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					git clone -q https://github.com/tomnomnom/waybackurls /opt/tools_ActiveRecon/waybackurls; go build /opt/tools_ActiveRecon/waybackurls/main.go && mv main /opt/tools_ActiveRecon/waybackurl && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					git clone -q https://github.com/tomnomnom/waybackurls /opt/tools_ActiveRecon/waybackurls; go build /opt/tools_ActiveRecon/waybackurls/main.go &> /dev/null && mv main /opt/tools_ActiveRecon/waybackurl && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				aquatone)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
@@ -93,15 +97,15 @@ check_dependencies(){
                     ;;
 				zile.py)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					wget https://raw.githubusercontent.com/bonino97/new-zile/master/zile.py -q --show-progress -O /opt/tools_ActiveRecon/zile.py && chmod +x /opt/tools_ActiveRecon/zile.py && sed -i '1s/^/#!\/usr\/bin\/python3\n/' /opt/tools_ActiveRecon/zile.py && pip3 install termcolor --root-user-action=ignore -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					wget https://raw.githubusercontent.com/bonino97/new-zile/master/zile.py -q --show-progress -O /opt/tools_ActiveRecon/zile.py && chmod +x /opt/tools_ActiveRecon/zile.py && sed -i '1s/^/#!\/usr\/bin\/python3\n/' /opt/tools_ActiveRecon/zile.py && pip3 install termcolor -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				linkfinder.py)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					cd /opt/tools_ActiveRecon; git clone https://github.com/GerbenJavado/LinkFinder.git -q && pip3 install -r LinkFinder/requirements.txt --root-user-action=ignore -q && ln -s /opt/tools_ActiveRecon/LinkFinder/linkfinder.py /opt/tools_ActiveRecon/linkfinder.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					git clone -q https://github.com/GerbenJavado/LinkFinder.git /opt/tools_ActiveRecon/LinkFinder && pip3 install -r /opt/tools_ActiveRecon/LinkFinder/requirements.txt -q && ln -s /opt/tools_ActiveRecon/LinkFinder/linkfinder.py /opt/tools_ActiveRecon/linkfinder.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				urlscan)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					pip3 install urlscan --root-user-action=ignore -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					pip3 install urlscan -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				subjs)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
@@ -113,7 +117,7 @@ check_dependencies(){
 					;;
 				sub404.py)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					cd /opt/tools_ActiveRecon; git clone https://github.com/r3curs1v3-pr0xy/sub404 -q && pip3 install -r sub404/requirements.txt --root-user-action=ignore -q && ln -s /opt/tools_ActiveRecon/sub404/sub404.py /opt/tools_ActiveRecon/sub404.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					git clone -q https://github.com/r3curs1v3-pr0xy/sub404.git /opt/tools_ActiveRecon/sub404 && pip3 install -r /opt/tools_ActiveRecon/sub404/requirements.txt -q && ln -s /opt/tools_ActiveRecon/sub404/sub404.py /opt/tools_ActiveRecon/sub404.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 			esac
 		else
@@ -126,7 +130,7 @@ main(){
     # Validaciones
     ls /opt/BugBounty/Targets/$file > /dev/null 2>&1
     if [[ "$(echo $?)" != "0" ]]; then
-        echo -e $red"\n[X]"$end $bold"No se encontró '$file'. Cree un archivo target_{program}.txt en la ruta /opt/BugBounty/Targets/"$end && exit 1
+        echo -e $red"\n[X]"$end $bold"No se encontró '$file'. Cree un archivo target_{program}.txt con los principales dominios en la ruta /opt/BugBounty/Targets/"$end && exit 1
     fi
     file=/opt/BugBounty/Targets/$file
     mkdir -p /opt/BugBounty/Programs/$program/Directories
@@ -140,8 +144,11 @@ main(){
     get_subdomain_takeover
     get_waybackurl
     get_open_redirects
+    get_especial_domains
+    scan_open_redirect
     get_paths
     new_domains
+    get_aquatone
     sudo umount /opt/BugBounty/$program/Images
     find /opt/BugBounty/$program/ -type f -empty -delete
 }
@@ -200,10 +207,23 @@ get_subdomain_takeover(){
 
 get_especial_domains(){
     echo -e $red"\n[+]"$end $bold"Busqueda especial de dominios con Crt.sh y AnalyticsID"$end
-    AnalyticsIDCoincidence.py -u $dominio | tee -a /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt
-    if [[ $OrganizationName ]]; then
-        curl -s "https://crt.sh/?O=$OrganizationName&output=json" | jq -r '.[].common_name' | grep -v null | sed 's/\*\.//g' | sort -u > temp_dominios
+    for dominio in $(cat dominios_vivos_$date.txt); do
+        AnalyticsIDCoincidence.py -u $dominio | tee -a dominios_analytics
+    done
+    sort -u dominios_analytics >> dominios_a_revisar_$date.txt
+    rm dominios_analytics
+    organization_names=()
+    name=$(curl -s 'https://www.digicert.com/api/check-host.php' --data-raw "host=$dominio" | grep -E -oh "Organization = [A-Za-z0-9 ]+" | cut -d "=" -f2 | sed 's/^[[:space:]]//g')
+    if [[ "$(echo $name | wc -c)" > "0" ]]; then
+        if [[ "${organization_names[*]}" =~ "${name}" ]]; then
+            organization_names+=$name
+        fi
     fi
+    for OrganizationName in "${organization_names[@]}"; do   
+        curl -s "https://crt.sh/?O=$OrganizationName&output=json" | jq -r '.[].common_name' | grep -v null | sed 's/\*\.//g' | tee -a dominios_crt
+    done
+    sort -u dominios_crt >> dominios_a_revisar_$date.txt
+    rm dominios_crt
     echo -e $green"\n[V] "$end"Busqueda finalizada!"
 }
 
@@ -245,7 +265,7 @@ get_open_redirects() {
         echo -e $yellow"\n[*]"$end $bold"Buscando en 'URLScan.io'"$end
         for dominio in $(cat $file); do
             uuid_scan=$(urlscan scan --url $dominio | jq '.uuid' | tr -d '"')
-            urlscan --uuid $uuid_scan | jq '.lists.urls[]?' | grep $dominio | grep "?" | sort -u | tr -d '"' >> /opt/BugBounty/Programs/$program/Data/open_redirect.txt
+            urlscan --uuid $uuid_scan | jq '.lists.urls[]?' | grep $dominio | grep "?" | sort -u | tr -d '"' | tee -a /opt/BugBounty/Programs/$program/Data/open_redirect.txt
         done
     else
         echo -e $yellow"\n[*]"$end $bold"Configure la variable de entorno URLSCAN_API_KEY para usar el servicio de URLScan.io"$end
@@ -253,12 +273,12 @@ get_open_redirects() {
     if [[ $VTCLI_APIKEY ]]; then
         echo -e $yellow"\n[*]"$end $bold"Buscando en 'VirusTotal'"$end
         for dominio in $(cat $file); do
-            vt url $dominio --include=outgoing_links | grep -oP \".*\" | grep $dominio | grep "?" | sort -u | tr -d '"' >> /opt/BugBounty/Programs/$program/Data/open_redirect
+            vt url $dominio --include=outgoing_links | grep -oP \".*\" | grep $dominio | grep "?" | sort -u | tr -d '"' | tee -a /opt/BugBounty/Programs/$program/Data/open_redirect
         done
     else
         echo -e $yellow"\n[*]"$end $bold"Configure la variable de entorno VTCLI_APIKEY para usar el servicio de VirusTotal"$end
     fi
-    cat /opt/BugBounty/Programs/$program/Data/open_redirect.txt | sort -u > /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt
+    sort -u /opt/BugBounty/Programs/$program/Data/open_redirect.txt > /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt
     rm /opt/BugBounty/Programs/$program/Data/open_redirect.txt
     number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt)
 
@@ -277,11 +297,11 @@ scan_open_redirect(){
         #    nueva_url=$(echo $url | sed "s/$redirect_url/$payload/g")
         #    curl "$nueva_url" -vs 2>&1 | grep -P "8441280b0c35cbc1147f8ba998a563a7" > /dev/null && echo $nueva_url >> vulnerable_open_redirect
         #done
-        scan_open_redirect.py -f /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt | tee vulnerable_open_redirect.txt
-        if [[ $(wc -c vulnerable_open_redirect.txt) != 0 ]]; fi
-             echo -e $green"[V] "$end"URLs vulnerables encontradas!." && send_alert1
+        ScanOpenRedirect.py -f /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt | tee vulnerable_open_redirect.txt
+        if [[ $(wc -c vulnerable_open_redirect.txt) != 0 ]]; then
+             echo -e $green"[V] "$end"URLs vulnerables encontradas!." && send_alert2
         fi
-    done
+    #done
     echo -e $green"[V] "$end"Escaneo finalizado!"
 }
 
@@ -311,7 +331,7 @@ new_domains(){
     for dominio in $lista_dominios; do
          echo $result | grep $dominio > /dev/null 2>&1
         if [ "$(echo $?)" -ne "0" ]; then
-            echo $dominio > /opt/BugBounty/Programs/$program/Data/Domains/nuevos_dominios_$date.txt
+            echo $dominio | tee -a /opt/BugBounty/Programs/$program/Data/Domains/nuevos_dominios_$date.txt
         fi
     done
 
