@@ -139,18 +139,18 @@ main(){
     mkdir -p /opt/BugBounty/Programs/$program/Data
     mkdir -p /opt/BugBounty/Programs/$program/Data/Domains
     cd /opt/BugBounty/Programs/$program/Data/Domains
-    #get_domains
-    #get_alive
-    #get_subdomain_takeover
-    #get_waybackurl
-    #get_open_redirects
+    get_domains
+    get_alive
+    get_subdomain_takeover
+    get_waybackurl
+    get_open_redirects
     scan_open_redirect
     get_especial_domains
     get_paths
     new_domains
     get_aquatone
-    sudo umount /opt/BugBounty/$program/Images
-    find /opt/BugBounty/$program/ -type f -empty -delete
+    sudo umount /opt/BugBounty/Programs/$program/Images
+    find /opt/BugBounty/Programs/$program/ -type f -empty -delete
 }
 
 get_domains() {
@@ -181,7 +181,7 @@ get_waybackurl() {
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurl | grep -P "\w+\.(php|aspx|jsp|pl|rb)(\?|$)" | tee -a dominios_a_analizar
     sort -u dominios_a_analizar >> /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
     rm dominios_a_analizar
-    number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt)
+    number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt)
     echo -e $green"\n[V] "$end"Waybackurl machine consultada correctamente. Dominios a revisar: $number_domains"
 }
 
@@ -209,7 +209,7 @@ get_especial_domains(){
         curl -s "https://crt.sh/?O=$OrganizationName&output=json" | python3 -c 'import sys,json;print(json.loads(sys.stdin.read())["common_name"])' | grep -v null | sed 's/\*\.//g' | tee -a dominios_crt
     done
     sort -u dominios_crt > dominios_crt_sh
-    diff dominios_crt_sh all_domains.txt | grep ">" | cut -d " " -f2 | tee -a /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
+    diff all_domains.txt dominios_crt_sh | grep ">" | cut -d " " -f2 | tee -a /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
     rm dominios_crt dominios_crt_sh
     echo -e $green"\n[V] "$end"Busqueda finalizada!"
 }
@@ -225,7 +225,7 @@ get_open_redirects() {
             urlscan retrieve --uuid $uuid | python3 -c 'import sys,json;print("\n".join(json.loads(sys.stdin.read())["lists"]["urls"]))' | grep $dominio | grep "?" | sort -u | tee -a open_redirect.txt
         done
     else
-        echo -e $yellow"\n[*]"$end $bold"Configure la variable de entorno URLSCANIO_API_KEY para usar el servicio de URLScan.io"$end
+        echo -e $yellow"\n[*]"$end $bold"Configure la variable de entorno URLSCAN_API_KEY para usar el servicio de URLScan.io"$end
     fi
     if [[ $VTCLI_APIKEY ]]; then
         echo -e $yellow"\n[*]"$end $bold"Buscando en 'VirusTotal'"$end
@@ -246,9 +246,11 @@ get_open_redirects() {
 
 scan_open_redirect(){
     echo -e $red"\n[+]"$end $bold"Comenzando escaneo Open Redirect..."$end
-    ScanOpenRedirect.py -f /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt | tee /opt/BugBounty/Programs/$program/Data/vulnerable_open_redirect.txt
-    if [[ "$(wc -w vulnerable_open_redirect.txt | cut -d ' ' -f1)" > "0" ]]; then
-            echo -e $green"[V] "$end"URLs vulnerables encontradas!." && send_alert2
+    ScanOpenRedirect.py -f /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt > /opt/BugBounty/Programs/$program/Data/vulnerable_open_redirect.txt
+    if [[ "$(wc -w /opt/BugBounty/Programs/$program/Data/vulnerable_open_redirect.txt | cut -d ' ' -f1)" > "0" ]]; then
+        echo -e $green"[V] "$end"URLs vulnerables encontradas!." && send_alert2
+    else
+        rm /opt/BugBounty/Programs/$program/Data/vulnerable_open_redirect.txt
     fi
     echo -e $green"\n[V] "$end"Escaneo finalizado!"
 }
@@ -288,7 +290,7 @@ send_alert1(){
 
 send_alert2(){
     echo -e $red"\n[+]"$end $bold"Enviando alerta..."$end
-    vulnerable_open_redirect="cat vulnerable_open_redirect.txt"
+    vulnerable_open_redirect="cat /opt/BugBounty/Programs/$program/Data/vulnerable_open_redirect.txt"
     message="[ + ] ActiveRecon Alert:
     [ --> ] Nuevos dominios encontrados en el programa: $program
     $($vulnerable_open_redirect)"
