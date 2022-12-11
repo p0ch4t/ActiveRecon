@@ -17,6 +17,8 @@ echo -e $red"
 | )   ( || (____/\   | |   ___) (___  \   /  | (____/\| ) \ \__| (____/\| (____/\| (___) || )  \  |
 |/     \|(_______/   )_(   \_______/   \_/   (_______/|/   \__/(_______/(_______/(_______)|/    )_)
 
+by: @p0ch4t - <joaquin.pochat@istea.com.ar>
+
 "$end
 
 # Environment Variables
@@ -26,7 +28,6 @@ url="https://api.telegram.org/bot$bot_token/sendMessage"
 date=$(date '-I')
 URLSCAN_API_KEY=$(printenv URLSCAN_API_KEY)
 VTCLI_APIKEY=$(printenv VTCLI_APIKEY)
-OrganizationName=$(printenv OrganizationName)
 
 # Functions
 
@@ -50,7 +51,7 @@ check_dependencies(){
 			echo -e $red"[X] $dependency "$end"no esta instalado."
 			case $dependency in
                 go)
-                    wget -q --show-progress http://mirror.archlinuxarm.org/aarch64/community/go-2:1.19.4-1-aarch64.pkg.tar.xz -O /golang.tar.xz && tar -xf /golang.tar.xz -C 2>/dev/null / && rm /golang.tar.xz && export PATH=$PATH:~/go/bin && echo -e $green"[+] "$end"Golang instalado!"
+                    wget -q --show-progress http://mirror.archlinuxarm.org/aarch64/community/go-2:1.19.4-1-aarch64.pkg.tar.xz -O /golang.tar.xz && tar -xf /golang.tar.xz -C 2>/dev/null / && rm /golang.tar.xz && echo "export PATH=$PATH:/root/go/bin" >> /root/.bashrc && echo -e $green"[+] "$end"Golang instalado!"
                     ;;
                 unzip)
                     wget -q --show-progress http://mirror.archlinuxarm.org/aarch64/extra/unzip-6.0-19-aarch64.pkg.tar.xz -O /unzip.tar.xz && tar -xf /unzip.tar.xz -C 2>/dev/null / && rm /unzip.tar.xz && echo -e $green"[+] "$end"Unzip instalado!"
@@ -178,19 +179,10 @@ get_alive() {
 
 get_waybackurl() {
     echo -e $red"\n[+]"$end $bold"Escaneo de dominios en Waybackurl"$end
-
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurl > dominios_a_analizar
-    cat dominios_a_analizar | sort -u | grep -P "\w+\.php(\?|$)" | sort -u >> /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
-    cat dominios_a_analizar | sort -u | grep -P "\w+\.aspx(\?|$)" | sort -u >> /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
-    cat dominios_a_analizar | sort -u | grep -P "\w+\.jsp(\?|$)" | sort -u >> /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
-    cat dominios_a_analizar | sort -u | grep -P "\w+\.pl(\?|$)" | sort -u >> /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
-    cat dominios_a_analizar | sort -u | grep -P "\w+\.rb(\?|$)" | sort -u >> /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
-    cat dominios_a_analizar | sort -u | grep -P "(%253D|%3D|=)http(s|)(%253A|%3A|:)(%252F|%2F|\/)(%252F|%2F|\/)[A-Za-z0-9-]+\." | sort -u > /opt/BugBounty/Programs/$program/Data/open_redirect.txt
-
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurl | grep -P "\w+\.(php|aspx|jsp|pl|rb)(\?|$)" | tee -a dominios_a_analizar
+    sort -u dominios_a_analizar >> dominios_a_revisar_$date.txt
     rm dominios_a_analizar
-    number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt)
-
-
+    number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt)
     echo -e $green"\n[V] "$end"Waybackurl machine consultada correctamente. Dominios a revisar: $number_domains"
 }
 
@@ -227,40 +219,10 @@ get_especial_domains(){
     echo -e $green"\n[V] "$end"Busqueda finalizada!"
 }
 
-#get_js() {
-#    echo -e $red"[+]"$end $bold"Get JS"$end
-#
-#    mkdir jslinks
-#
-#    cat dominios_vivos_$date.txt | subjs >> jslinks/all_jslinks.txt && echo -e $green"[V] "$end"Archivos JS obtenidos correctamente."
-#}
-
-#get_tokens() {
-#    echo -e $red"[+]"$end $bold"Get Tokens"$end
-#
-#    mkdir tokens
-#
-#    cat dominios_vivos_$date.txt waybackdata/jsurls.txt jslinks/all_jslinks.txt >tokens/all_js_urls.txt
-#    sort -u tokens/all_js_urls.txt -o tokens/all_js_urls.txt
-#    cat tokens/all_js_urls.txt | zile.py --request >>tokens/all_tokens.txt && echo -e $green"[V] "$end"Tokens obtenidos correctamente."
-#    sort -u tokens/all_tokens.txt -o tokens/all_tokens.txt
-#}
-
-#get_endpoints() {
-#    echo -e $red"[+]"$end $bold"Get Endpoints"$end
-#
-#    mkdir endpoints
-#
-#    for link in $(cat jslinks/all_jslinks.txt); do
-#        links_file=$(echo $link | sed -E 's/[\.|\/|:]+/_/g').txt
-#        python3 /opt/tools_ActiveRecon/LinkFinder/linkfinder.py -i $link -o cli >> endpoints/$links_file
-#    done
-#
-#    echo -e $green"[V] "$end"Endpoints obtenidos correctamente."
-#}
-
 get_open_redirects() {
     echo -e $red"\n[+]"$end $bold"Buscando URLs susceptibles a Open Redirect"$end
+    echo -e $yellow"\n[*]"$end $bold"Buscando en 'Waybackurl'"$end
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurl | grep -P "(%253D|%3D|=)http(s|)(%253A|%3A|:)(%252F|%2F|\/)(%252F|%2F|\/)[A-Za-z0-9-]+\." | tee -a open_redirect.txt
     if [[ $URLSCAN_API_KEY ]]; then
         echo -e $yellow"\n[*]"$end $bold"Buscando en 'URLScan.io'"$end
         for dominio in $(cat $file); do
@@ -287,31 +249,11 @@ get_open_redirects() {
 
 scan_open_redirect(){
     echo -e $red"\n[+]"$end $bold"Comenzando escaneo Open Redirect..."$end
-    #lista_urls=$(cat /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt)
-    #payloads=('=https://pfelilpe.com/ping?' '=//pfelilpe.com/ping?' '=pfelilpe.com/ping' '=\/\/pfelilpe.com/ping?' '=https:pfelilpe.com/ping?')
-    #for url in $lista_urls; do
-        #parametros_url=$(echo $url | cut -d "?" -f2)
-        #url=$(echo $url | cut -d "?" -f1)
-        #redirect_url=$(echo $parametros_url | grep -oP (%253D|%3D|=)http(s|)(%253A|%3A|:)(%252F|%2F|\/)(%252F|%2F|\/)[A-Za-z0-9-]+\.
-        #for payload in "${payloads[@]}"; do
-        #    nueva_url=$(echo $url | sed "s/$redirect_url/$payload/g")
-        #    curl "$nueva_url" -vs 2>&1 | grep -P "8441280b0c35cbc1147f8ba998a563a7" > /dev/null && echo $nueva_url >> vulnerable_open_redirect
-        #done
-        ScanOpenRedirect.py -f /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt | tee vulnerable_open_redirect.txt
-        if [[ $(wc -c vulnerable_open_redirect.txt) != 0 ]]; then
-             echo -e $green"[V] "$end"URLs vulnerables encontradas!." && send_alert2
-        fi
-    #done
+    ScanOpenRedirect.py -f /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt | tee vulnerable_open_redirect.txt
+    if [[ $(wc -c vulnerable_open_redirect.txt) != 0 ]]; then
+            echo -e $green"[V] "$end"URLs vulnerables encontradas!." && send_alert2
+    fi
     echo -e $green"[V] "$end"Escaneo finalizado!"
-}
-
-send_alert2(){
-    echo -e $red"\n[+]"$end $bold"Enviando alerta..."$end
-    vulnerable_open_redirect="cat vulnerable_open_redirect.txt"
-    message="[ + ] ActiveRecon Alert:
-    [ --> ] Nuevos dominios encontrados en el programa: $program
-    $($vulnerable_open_redirect)"
-    curl --silent --output /dev/null -F chat_id="$chat_ID" -F "text=$message" $url -X POST && echo -e $green"\n[V] "$end"Alerta enviada!."
 }
 
 get_paths() {
@@ -346,6 +288,47 @@ send_alert1(){
     $($nuevos_dominios)"
     curl --silent --output /dev/null -F chat_id="$chat_ID" -F "text=$message" $url -X POST && echo -e $green"\n[V] "$end"Alerta enviada!."
 }
+
+send_alert2(){
+    echo -e $red"\n[+]"$end $bold"Enviando alerta..."$end
+    vulnerable_open_redirect="cat vulnerable_open_redirect.txt"
+    message="[ + ] ActiveRecon Alert:
+    [ --> ] Nuevos dominios encontrados en el programa: $program
+    $($vulnerable_open_redirect)"
+    curl --silent --output /dev/null -F chat_id="$chat_ID" -F "text=$message" $url -X POST && echo -e $green"\n[V] "$end"Alerta enviada!."
+}
+
+#get_js() {
+#    echo -e $red"[+]"$end $bold"Get JS"$end
+#
+#    mkdir jslinks
+#
+#    cat dominios_vivos_$date.txt | subjs >> jslinks/all_jslinks.txt && echo -e $green"[V] "$end"Archivos JS obtenidos correctamente."
+#}
+
+#get_tokens() {
+#    echo -e $red"[+]"$end $bold"Get Tokens"$end
+#
+#    mkdir tokens
+#
+#    cat dominios_vivos_$date.txt waybackdata/jsurls.txt jslinks/all_jslinks.txt >tokens/all_js_urls.txt
+#    sort -u tokens/all_js_urls.txt -o tokens/all_js_urls.txt
+#    cat tokens/all_js_urls.txt | zile.py --request >>tokens/all_tokens.txt && echo -e $green"[V] "$end"Tokens obtenidos correctamente."
+#    sort -u tokens/all_tokens.txt -o tokens/all_tokens.txt
+#}
+
+#get_endpoints() {
+#    echo -e $red"[+]"$end $bold"Get Endpoints"$end
+#
+#    mkdir endpoints
+#
+#    for link in $(cat jslinks/all_jslinks.txt); do
+#        links_file=$(echo $link | sed -E 's/[\.|\/|:]+/_/g').txt
+#        python3 /opt/tools_ActiveRecon/LinkFinder/linkfinder.py -i $link -o cli >> endpoints/$links_file
+#    done
+#
+#    echo -e $green"[V] "$end"Endpoints obtenidos correctamente."
+#}
 
 helpPanel(){
     echo -e $red"\n[X]"$end $bold"Debe ingresar los parametros:"$end
