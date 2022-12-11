@@ -25,7 +25,7 @@ by: @p0ch4t - <joaquin.pochat@istea.com.ar>
 bot_token=$(printenv bot_telegram_token)
 chat_ID=$(printenv chat_ID)
 date=$(date '-I')
-URLSCANIO_API_KEY=$(printenv URLSCANIO_API_KEY)
+URLSCAN_API_KEY=$(printenv URLSCAN_API_KEY)
 VTCLI_APIKEY=$(printenv VTCLI_APIKEY)
 
 # Functions
@@ -43,7 +43,7 @@ check_dependencies(){
     mkdir -p /opt/BugBounty/Programs
     mkdir -p /opt/BugBounty/Targets
 	export PATH="$PATH:/opt/tools_ActiveRecon:/root/go/bin"
-	dependencies=(go unzip findomain assetfinder amass subfinder httprobe ScanOpenRedirect.py waybackurl aquatone vt zile.py linkfinder.py urlscanio unfurl subjs dirsearch.py sub404.py)
+	dependencies=(go unzip findomain assetfinder amass subfinder httprobe ScanOpenRedirect.py waybackurl aquatone vt zile.py linkfinder.py urlscan unfurl subjs dirsearch.py sub404.py)
 	for dependency in "${dependencies[@]}"; do
 		which $dependency > /dev/null 2>&1
 		if [ "$(echo $?)" -ne "0" ]; then
@@ -99,9 +99,9 @@ check_dependencies(){
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					git clone -q https://github.com/GerbenJavado/LinkFinder.git /opt/tools_ActiveRecon/LinkFinder && pip3 install -r /opt/tools_ActiveRecon/LinkFinder/requirements.txt -q && ln -s /opt/tools_ActiveRecon/LinkFinder/linkfinder.py /opt/tools_ActiveRecon/linkfinder.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
-				urlscanio)
+				urlscan)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					pip3 install urlscanio -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					pip3 install urlscan-py -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
                 unfurl)
                     echo -e "${yellow}[..]${end} Instalando $dependency"
@@ -139,11 +139,11 @@ main(){
     mkdir -p /opt/BugBounty/Programs/$program/Data
     mkdir -p /opt/BugBounty/Programs/$program/Data/Domains
     cd /opt/BugBounty/Programs/$program/Data/Domains
-    get_domains
-    get_alive
+    #get_domains
+    #get_alive
     #get_subdomain_takeover
     #get_waybackurl
-    get_open_redirects
+    #get_open_redirects
     scan_open_redirect
     get_especial_domains
     get_paths
@@ -218,11 +218,11 @@ get_open_redirects() {
     echo -e $red"\n[+]"$end $bold"Buscando URLs susceptibles a Open Redirect"$end
     echo -e $yellow"\n[*]"$end $bold"Buscando en 'Waybackurl'"$end
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurl | grep -P "(%253D|%3D|=)http(s|)(%253A|%3A|:)(%252F|%2F|\/)(%252F|%2F|\/)[A-Za-z0-9-]+\." | tee -a open_redirect.txt
-    if [[ $URLSCANIO_API_KEY ]]; then
+    if [[ $URLSCAN_API_KEY ]]; then
         echo -e $yellow"\n[*]"$end $bold"Buscando en 'URLScan.io'"$end
         for dominio in $(cat $file); do
-            uuid_scan=$(urlscanio scan --url $dominio | python3 -c 'import sys,json;print(json.loads(sys.stdin.read())["uuid"])' | tr -d '"')
-            urlscanio --uuid $uuid_scan | python3 -c 'import sys,json;print(json.loads(sys.stdin.read())["lists"]["urls"])' | grep $dominio | grep "?" | sort -u | tr -d '"' | tee -a open_redirect.txt
+            uuid=$(urlscan scan --url $dominio | python3 -c 'import sys,json;print(json.loads(sys.stdin.read())["uuid"])')
+            urlscan retrieve --uuid $uuid | python3 -c 'import sys,json;print("\n".join(json.loads(sys.stdin.read())["lists"]["urls"]))' | grep $dominio | grep "?" | sort -u | tee -a open_redirect.txt
         done
     else
         echo -e $yellow"\n[*]"$end $bold"Configure la variable de entorno URLSCANIO_API_KEY para usar el servicio de URLScan.io"$end
