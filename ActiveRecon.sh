@@ -24,9 +24,8 @@ by: @p0ch4t - <joaquin.pochat@istea.com.ar>
 # Environment Variables
 bot_token=$(printenv bot_telegram_token)
 chat_ID=$(printenv chat_ID)
-url="https://api.telegram.org/bot$bot_token/sendMessage"
 date=$(date '-I')
-URLSCAN_API_KEY=$(printenv URLSCAN_API_KEY)
+URLSCANIO_API_KEY=$(printenv URLSCANIO_API_KEY)
 VTCLI_APIKEY=$(printenv VTCLI_APIKEY)
 
 # Functions
@@ -44,7 +43,7 @@ check_dependencies(){
     mkdir -p /opt/BugBounty/Programs
     mkdir -p /opt/BugBounty/Targets
 	export PATH="$PATH:/opt/tools_ActiveRecon:/root/go/bin"
-	dependencies=(go unzip findomain assetfinder amass subfinder httprobe AnalyticsIDCoincidence.py ScanOpenRedirect.py waybackurl aquatone vt zile.py linkfinder.py urlscan subjs dirsearch.py sub404.py)
+	dependencies=(go unzip findomain assetfinder amass subfinder httprobe ScanOpenRedirect.py waybackurl aquatone vt zile.py linkfinder.py urlscanio unfurl subjs dirsearch.py sub404.py)
 	for dependency in "${dependencies[@]}"; do
 		which $dependency > /dev/null 2>&1
 		if [ "$(echo $?)" -ne "0" ]; then
@@ -76,10 +75,6 @@ check_dependencies(){
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					go install github.com/tomnomnom/httprobe@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
-                AnalyticsIDCoincidence.py)
-                    echo -e "${yellow}[..]${end} Instalando $dependency"
-                    wget -q --show-progress https://raw.githubusercontent.com/p0ch4t/AnalyticsIDCoincidence/main/AnalyticsIDCoincidence.py -O /opt/tools_ActiveRecon/AnalyticsIDCoincidence.py && chmod +x /opt/tools_ActiveRecon/AnalyticsIDCoincidence.py && sed -i '1s/^/#!\/usr\/bin\/python3\n/' /opt/tools_ActiveRecon/AnalyticsIDCoincidence.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
-				    ;;
                 ScanOpenRedirect.py)
                     echo -e "${yellow}[..]${end} Instalando $dependency"
                     wget -q --show-progress https://raw.githubusercontent.com/p0ch4t/ScanOpenRedirect/main/ScanOpenRedirect.py -O /opt/tools_ActiveRecon/ScanOpenRedirect.py && chmod +x /opt/tools_ActiveRecon/ScanOpenRedirect.py && sed -i '1s/^/#!\/usr\/bin\/python3\n/' /opt/tools_ActiveRecon/ScanOpenRedirect.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
@@ -104,10 +99,14 @@ check_dependencies(){
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					git clone -q https://github.com/GerbenJavado/LinkFinder.git /opt/tools_ActiveRecon/LinkFinder && pip3 install -r /opt/tools_ActiveRecon/LinkFinder/requirements.txt -q && ln -s /opt/tools_ActiveRecon/LinkFinder/linkfinder.py /opt/tools_ActiveRecon/linkfinder.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
-				urlscan)
+				urlscanio)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					pip3 install urlscan -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					pip3 install urlscanio -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
+                unfurl)
+                    echo -e "${yellow}[..]${end} Instalando $dependency"
+                    go install github.com/tomnomnom/unfurl@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+                    ;;
 				subjs)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					wget -q --show-progress https://github.com/lc/subjs/releases/download/v1.0.1/subjs_1.0.1_linux_amd64.tar.gz -O /opt/tools_ActiveRecon/subjs.tar.gz && tar -xzf /opt/tools_ActiveRecon/subjs.tar.gz -C /opt/tools_ActiveRecon/ && rm /opt/tools_ActiveRecon/subjs.tar.gz /opt/tools_ActiveRecon/LICENSE /opt/tools_ActiveRecon/README.md && echo -e "${green}[V] $dependency${end} instalado correctamente!"
@@ -142,11 +141,11 @@ main(){
     cd /opt/BugBounty/Programs/$program/Data/Domains
     get_domains
     get_alive
-    get_subdomain_takeover
-    get_waybackurl
+    #get_subdomain_takeover
+    #get_waybackurl
     get_open_redirects
-    get_especial_domains
     scan_open_redirect
+    get_especial_domains
     get_paths
     new_domains
     get_aquatone
@@ -180,7 +179,7 @@ get_alive() {
 get_waybackurl() {
     echo -e $red"\n[+]"$end $bold"Escaneo de dominios en Waybackurl"$end
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurl | grep -P "\w+\.(php|aspx|jsp|pl|rb)(\?|$)" | tee -a dominios_a_analizar
-    sort -u dominios_a_analizar >> dominios_a_revisar_$date.txt
+    sort -u dominios_a_analizar >> /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
     rm dominios_a_analizar
     number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt)
     echo -e $green"\n[V] "$end"Waybackurl machine consultada correctamente. Dominios a revisar: $number_domains"
@@ -188,7 +187,7 @@ get_waybackurl() {
 
 get_aquatone() {
     echo -e $red"\n[+]"$end $bold"Sacando capturas de dominios a revisar..."$end
-    cat /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/$program/Images -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000
+    cat /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000 -chrome-path /snap/bin/chromium
     echo -e $green"\n[V] "$end"Capturas realizadas correctamente."
 }
 
@@ -198,12 +197,7 @@ get_subdomain_takeover(){
 }
 
 get_especial_domains(){
-    echo -e $red"\n[+]"$end $bold"Busqueda especial de dominios con Crt.sh y AnalyticsID"$end
-    for dominio in $(cat dominios_vivos_$date.txt); do
-        AnalyticsIDCoincidence.py -u $dominio | tee -a dominios_analytics
-    done
-    sort -u dominios_analytics >> dominios_a_revisar_$date.txt
-    rm dominios_analytics
+    echo -e $red"\n[+]"$end $bold"Busqueda especial de dominios con Crt.sh"$end
     organization_names=()
     name=$(curl -s 'https://www.digicert.com/api/check-host.php' --data-raw "host=$dominio" | grep -E -oh "Organization = [A-Za-z0-9 ]+" | cut -d "=" -f2 | sed 's/^[[:space:]]//g')
     if [[ "$(echo $name | wc -c)" > "0" ]]; then
@@ -212,10 +206,11 @@ get_especial_domains(){
         fi
     fi
     for OrganizationName in "${organization_names[@]}"; do   
-        curl -s "https://crt.sh/?O=$OrganizationName&output=json" | jq -r '.[].common_name' | grep -v null | sed 's/\*\.//g' | tee -a dominios_crt
+        curl -s "https://crt.sh/?O=$OrganizationName&output=json" | python3 -c 'import sys,json;print(json.loads(sys.stdin.read())["common_name"])' | grep -v null | sed 's/\*\.//g' | tee -a dominios_crt
     done
-    sort -u dominios_crt >> dominios_a_revisar_$date.txt
-    rm dominios_crt
+    sort -u dominios_crt > dominios_crt_sh
+    diff dominios_crt_sh all_domains.txt | grep ">" | cut -d " " -f2 | tee -a /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt
+    rm dominios_crt dominios_crt_sh
     echo -e $green"\n[V] "$end"Busqueda finalizada!"
 }
 
@@ -223,37 +218,39 @@ get_open_redirects() {
     echo -e $red"\n[+]"$end $bold"Buscando URLs susceptibles a Open Redirect"$end
     echo -e $yellow"\n[*]"$end $bold"Buscando en 'Waybackurl'"$end
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurl | grep -P "(%253D|%3D|=)http(s|)(%253A|%3A|:)(%252F|%2F|\/)(%252F|%2F|\/)[A-Za-z0-9-]+\." | tee -a open_redirect.txt
-    if [[ $URLSCAN_API_KEY ]]; then
+    if [[ $URLSCANIO_API_KEY ]]; then
         echo -e $yellow"\n[*]"$end $bold"Buscando en 'URLScan.io'"$end
         for dominio in $(cat $file); do
-            uuid_scan=$(urlscan scan --url $dominio | jq '.uuid' | tr -d '"')
-            urlscan --uuid $uuid_scan | jq '.lists.urls[]?' | grep $dominio | grep "?" | sort -u | tr -d '"' | tee -a /opt/BugBounty/Programs/$program/Data/open_redirect.txt
+            uuid_scan=$(urlscanio scan --url $dominio | python3 -c 'import sys,json;print(json.loads(sys.stdin.read())["uuid"])' | tr -d '"')
+            urlscanio --uuid $uuid_scan | python3 -c 'import sys,json;print(json.loads(sys.stdin.read())["lists"]["urls"])' | grep $dominio | grep "?" | sort -u | tr -d '"' | tee -a open_redirect.txt
         done
     else
-        echo -e $yellow"\n[*]"$end $bold"Configure la variable de entorno URLSCAN_API_KEY para usar el servicio de URLScan.io"$end
+        echo -e $yellow"\n[*]"$end $bold"Configure la variable de entorno URLSCANIO_API_KEY para usar el servicio de URLScan.io"$end
     fi
     if [[ $VTCLI_APIKEY ]]; then
         echo -e $yellow"\n[*]"$end $bold"Buscando en 'VirusTotal'"$end
         for dominio in $(cat $file); do
-            vt url $dominio --include=outgoing_links | grep -oP \".*\" | grep $dominio | grep "?" | sort -u | tr -d '"' | tee -a /opt/BugBounty/Programs/$program/Data/open_redirect
+            vt url $dominio --include=outgoing_links | grep -oP \".*\" | grep $dominio | grep "?" | sort -u | tr -d '"' | tee -a open_redirect.txt
         done
     else
         echo -e $yellow"\n[*]"$end $bold"Configure la variable de entorno VTCLI_APIKEY para usar el servicio de VirusTotal"$end
     fi
-    sort -u /opt/BugBounty/Programs/$program/Data/open_redirect.txt > /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt
-    rm /opt/BugBounty/Programs/$program/Data/open_redirect.txt
+    for url in $(cat open_redirect.txt | unfurl format %d%p | sort -u); do
+        cat open_redirect.txt | grep $url | head -n1 >> p_open_redirect.txt
+    done
+    sort -u p_open_redirect.txt > /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt
+    rm open_redirect.txt p_open_redirect.txt
     number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt)
-
-    echo -e $green"\n[V] "$end"Busqueda finalizada!"
+    echo -e $green"\n[V] "$end"Busqueda finalizada! Dominios obtenidos: $number_domains"
 }
 
 scan_open_redirect(){
     echo -e $red"\n[+]"$end $bold"Comenzando escaneo Open Redirect..."$end
-    ScanOpenRedirect.py -f /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt | tee vulnerable_open_redirect.txt
-    if [[ $(wc -c vulnerable_open_redirect.txt) != 0 ]]; then
+    ScanOpenRedirect.py -f /opt/BugBounty/Programs/$program/Data/possible_open_redirect.txt | tee /opt/BugBounty/Programs/$program/Data/vulnerable_open_redirect.txt
+    if [[ "$(wc -w vulnerable_open_redirect.txt | cut -d ' ' -f1)" > "0" ]]; then
             echo -e $green"[V] "$end"URLs vulnerables encontradas!." && send_alert2
     fi
-    echo -e $green"[V] "$end"Escaneo finalizado!"
+    echo -e $green"\n[V] "$end"Escaneo finalizado!"
 }
 
 get_paths() {
@@ -286,7 +283,7 @@ send_alert1(){
     message="[ + ] ActiveRecon Alert:
     [ --> ] Nuevos dominios encontrados en el programa: $program
     $($nuevos_dominios)"
-    curl --silent --output /dev/null -F chat_id="$chat_ID" -F "text=$message" $url -X POST && echo -e $green"\n[V] "$end"Alerta enviada!."
+    curl --silent --output /dev/null -F chat_id="$chat_ID" -F "text=$message" "https://api.telegram.org/bot$bot_token/sendMessage" -X POST && echo -e $green"\n[V] "$end"Alerta enviada!."
 }
 
 send_alert2(){
@@ -295,7 +292,7 @@ send_alert2(){
     message="[ + ] ActiveRecon Alert:
     [ --> ] Nuevos dominios encontrados en el programa: $program
     $($vulnerable_open_redirect)"
-    curl --silent --output /dev/null -F chat_id="$chat_ID" -F "text=$message" $url -X POST && echo -e $green"\n[V] "$end"Alerta enviada!."
+    curl --silent --output /dev/null -F chat_id="$chat_ID" -F "text=$message" "https://api.telegram.org/bot$bot_token/sendMessage" -X POST && echo -e $green"\n[V] "$end"Alerta enviada!."
 }
 
 #get_js() {
