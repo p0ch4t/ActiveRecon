@@ -200,6 +200,7 @@ get_suspects_files(){
         cat dominios_a_analizar | grep $dominio_path | head -n1 >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt
     done
     sort -u /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt -o /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt
+    rm -f dominios_a_analizar
     echo -e $green"\n[V] "$end"Escaneo finalizado!"
 }
 
@@ -231,14 +232,14 @@ find_token_session_on_response(){
 
 get_especial_domains(){
     echo -e $red"\n[+]"$end $bold"Busqueda especial de dominios con Crt.sh"$end
-    rm -f /opt/BugBounty/Programs/$program/Data/dominios_crt_sh.txt
+    rm -f /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
     organization_names=()
     echo -e $yellow"\n[*]"$end $bold"Certificados:"$end
     for dominio in $(cat "/opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt"); do
-        name=$(curl -s 'https://www.digicert.com/api/check-host.php' --data-raw "host=$dominio" | grep -E -oh "Organization = [A-Za-z0-9 ]+" | cut -d "=" -f2 | sed 's/^[[:space:]]//g')
+        name=$(curl -s 'https://www.digicert.com/api/check-host.php' --data-raw "host=$dominio" | grep -E -oh "Organization = [A-Za-z0-9. ]+" | cut -d "=" -f2 | sed 's/^[[:space:]]//g')
         if [[ ! "${organization_names[*]}" =~ "${name}" ]]; then
             echo "$name - $dominio"
-            echo $dominio >> /opt/BugBounty/Programs/$program/Data/dominios_crt_sh.txt
+            echo $dominio >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
             organization_names+=$name
         fi
     done
@@ -263,7 +264,7 @@ get_paths() {
 
 new_domains(){
     echo -e $red"\n[+]"$end $bold"Buscando diferencias de escaneos anteriores..."$end
-    shopt -s extglob && result=$(cat !(/opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt) 2>/dev/null)
+    shopt -s extglob 2>/dev/null && result=$(cat !(/opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt) 2>/dev/null)
     lista_dominios=$(cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt)
     for dominio in $lista_dominios; do
          echo $result | grep $dominio > /dev/null 2>&1
@@ -294,7 +295,7 @@ get_tokens() {
 get_endpoints() {
     echo -e $red"\n[+]"$end $bold"Buscando endpoints a partir de archivos JS"$end
     for link in $(cat all_jslinks.txt); do
-        links_file=$(echo $link | sed -E 's/[\.|\/|:]+/_/g').txt
+        links_file=$(echo $link | unfurl format %d%p | sed -E 's/[\.|\/|:]+/_/g').txt
         python3 /opt/tools_ActiveRecon/LinkFinder/linkfinder.py -i $link -o cli >> /opt/BugBounty/Programs/$program/Directories/js_endpoints/$links_file
     done
     echo -e $green"\n[V] "$end"Endpoints obtenidos correctamente."
@@ -302,8 +303,8 @@ get_endpoints() {
 
 scan_nuclei(){
     echo -e $red"\n[+]"$end $bold"Comenzando escaneo con Nuclei..."$end
-    nuclei -l /opt/BugBounty/Programs/$program/Data/dominios_a_revisar_$date.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_suspects_domains_$date.txt
-    nuclei -l /opt/BugBounty/Programs/$program/Data/dominios_crt_sh.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_domains_crt_sh_$date.txt
+    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_suspects_domains_$date.txt
+    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_domains_crt_sh_$date.txt
 }
 
 send_alert1(){
