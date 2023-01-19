@@ -63,7 +63,7 @@ check_dependencies(){
                     snap install chromium && echo -e $green"[+] "$end"pip3 instalado!"
                     ;;
                 apache2)
-                    apt install apache2 -y &> /dev/null && systemctl start apache2 && echo -e $green"[+] "$end"Apache2 instalado y funcionando!"
+                    apt install apache2 -y &> /dev/null && echo "DirectoryIndex aquatone_report.html" >> "/etc/apache2/apache2.conf" && systemctl restart apache2 && echo -e $green"[+] "$end"Apache2 instalado y funcionando!"
                     # Permite el tráfico desde el firewall local
                     iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
                     netfilter-persistent save
@@ -199,7 +199,7 @@ get_alive() {
 
 get_subdomain_takeover(){
 	echo -e $red"\n[+]"$end $bold"Escaneo en busqueda de subdomains takeovers"$end
-	subjack -w all_urls.txt -t 100 -timeout 30 -o possible_subdomains_takeover.txt
+	subjack -w /opt/BugBounty/Programs/$program/Data/Domains/all_domains.txt -t 100 -timeout 30 -o /opt/BugBounty/Programs/$program/Data/possible_subdomains_takeover.txt
 }
 
 get_all_urls() {
@@ -298,7 +298,7 @@ get_aquatone() {
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt -chrome-path $(which chromium)
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar_$date -chrome-path $(which chromium)
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -chrome-path $(which chromium)
-    cp -r /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt /var/www/html/$program
+    cp -r /opt/BugBounty/Programs/$program/Images/ /var/www/html/$program/
     echo -e $green"\n[V] "$end"Capturas realizadas correctamente."
 }
 
