@@ -25,9 +25,9 @@ by: @p0ch4t - <joaquin.pochat@istea.com.ar>
 bot_token=$(printenv bot_telegram_token)
 chat_ID=$(printenv chat_ID)
 date=$(date '-I')
-cookies='ssid=ghy-121418-5Yg1lZa0i4X1UyUY75xJbULmxChVSm-__-1150111841-__-1765663848576--RRR_0-RRR_0' ## --> Setee sus cookies: Ej: session_id=test123;privelege=admin
+cookies='' ## --> Setee sus cookies: Ej: session_id=test123;privelege=admin
 authorization_token='' ## --> Setee su Authorization Token. Ej: Bearer ey1231234....
-WORD_RESPONSE='ghy-121418-5Yg1lZa0i4X1UyUY75xJbULmxChVSm-__-1150111841-__-1765663848576--RRR_0-RRR_0' ## --> Setee una palabra. Esto sirve para buscar tokens de sesion en respuestas del servidor (para usar con XSS)
+WORD_RESPONSE='' ## --> Setee una palabra. Esto sirve para buscar tokens de sesion en respuestas del servidor (para usar con XSS)
 
 # Functions
 
@@ -44,17 +44,29 @@ check_dependencies(){
     mkdir -p /opt/BugBounty/Programs
     mkdir -p /opt/BugBounty/Targets
 	export PATH="$PATH:/opt/tools_ActiveRecon:/root/go/bin"
-	dependencies=(go unzip findomain assetfinder amass subfinder httpx ScanOpenRedirect.py gau aquatone nuclei zile.py linkfinder.py unfurl subjs dirsearch.py sub404.py)
+	dependencies=(go unzip pip3 chromium findomain assetfinder amass subfinder httpx ScanOpenRedirect.py gau waybackurls aquatone nuclei zile.py linkfinder.py unfurl subjs dirsearch.py sub404.py)
 	for dependency in "${dependencies[@]}"; do
 		which $dependency > /dev/null 2>&1
 		if [ "$(echo $?)" -ne "0" ]; then
 			echo -e $red"[X] $dependency "$end"no esta instalado."
 			case $dependency in
                 go)
-                    wget -q --show-progress http://mirror.archlinuxarm.org/aarch64/community/go-2:1.19.4-1-aarch64.pkg.tar.xz -O /golang.tar.xz && tar -xf /golang.tar.xz -C 2>/dev/null / && rm /golang.tar.xz && echo "export PATH=$PATH:/root/go/bin" >> /root/.bashrc && echo -e $green"[+] "$end"Golang instalado!"
+                    snap install golang --classic &> /dev/null && echo "export PATH=$PATH:/root/go/bin" >> /root/.bashrc && echo -e $green"[+] "$end"Golang instalado!"
                     ;;
                 unzip)
-                    wget -q --show-progress http://mirror.archlinuxarm.org/aarch64/extra/unzip-6.0-19-aarch64.pkg.tar.xz -O /unzip.tar.xz && tar -xf /unzip.tar.xz -C 2>/dev/null / && rm /unzip.tar.xz && echo -e $green"[+] "$end"Unzip instalado!"
+                    apt install unzip -y &> /dev/null && echo -e $green"[+] "$end"Unzip instalado!"
+                    ;;
+                pip3)
+                    apt install python3-pip -y &> /dev/null && echo -e $green"[+] "$end"pip3 instalado!"
+                    ;;
+                chromium)
+                    snap install chromium && echo -e $green"[+] "$end"pip3 instalado!"
+                    ;;
+                apache2)
+                    apt install apache2 -y &> /dev/null && systemctl start apache2 && echo -e $green"[+] "$end"Apache2 instalado y funcionando!"
+                    # Permite el tráfico desde el firewall local
+                    iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+                    netfilter-persistent save
                     ;;
 				findomain)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
@@ -84,6 +96,10 @@ check_dependencies(){
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					go install github.com/lc/gau/v2/cmd/gau@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
+                waybackurls)
+                    echo -e "${yellow}[..]${end} Instalando $dependency"
+                    go install github.com/tomnomnom/waybackurls@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+                    ;;
 				aquatone)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					wget -q --show-progress https://github.com/michenriksen/aquatone/releases/download/v1.7.0/aquatone_linux_arm64_1.7.0.zip -O /opt/tools_ActiveRecon/aquatone.zip && unzip -q /opt/tools_ActiveRecon/aquatone.zip -d /opt/tools_ActiveRecon && rm /opt/tools_ActiveRecon/aquatone.zip /opt/tools_ActiveRecon/README.md /opt/tools_ActiveRecon/LICENSE.txt && echo -e "${green}[V] $dependency${end} instalado correctamente!"
@@ -188,6 +204,7 @@ get_subdomain_takeover(){
 get_all_urls() {
     echo -e $red"\n[+]"$end $bold"Escaneo de dominios en Waybackurl, Commoncrawl, Otx y Urlscan. Esto puede demorar bastante..."$end
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | gau --threads 100 --timeout 10 --fp --retries 3 > /opt/BugBounty/Programs/$program/Data/Domains/all_urls.txt
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurls >> /opt/BugBounty/Programs/$program/Data/Domains/all_urls.txt
     number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/all_urls.txt)
     echo -e $green"\n[V] "$end"URLs obtenidas correctamente. Cantidad de URLs obtenidas: $number_domains"
 }
@@ -197,9 +214,9 @@ get_suspects_files(){
     cat all_urls.txt | grep -P "\w+\.(php|aspx|jsp|pl|rb)(\?|$)" | sort -u > dominios_a_analizar
     for url in $(cat dominios_a_analizar); do
         dominio_path=$(echo $url | unfurl format %d%p)
-        cat dominios_a_analizar | grep $dominio_path | head -n1 >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt
+        cat dominios_a_analizar | grep $dominio_path | head -n1 >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt
     done
-    sort -u /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt -o /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt
+    sort -u /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt -o /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt
     rm -f dominios_a_analizar
     echo -e $green"\n[V] "$end"Escaneo finalizado!"
 }
@@ -249,7 +266,7 @@ get_especial_domains(){
 get_paths() {
     echo -e $red"\n[+]"$end $bold"Busqueda de directorios con 'dirsearch' de dominios a revisar"$end
     domains=()
-    for url in $(cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt); do
+    for url in $(cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt); do
         domain=$(echo $url | unfurl format %d)
         if [[ ! "${domains[*]}" =~ "${domain}" ]]; then
             domains+=$domain
@@ -277,8 +294,10 @@ new_domains(){
 
 get_aquatone() {
     echo -e $red"\n[+]"$end $bold"Sacando capturas de dominios a revisar..."$end
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar_$date -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000 -chrome-path /snap/bin/chromium
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000 -chrome-path /snap/bin/chromium
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar_$date -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000 -chrome-path /snap/bin/chromium
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000 -chrome-path /snap/bin/chromium
+    cp -r /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt /var/www/html
     echo -e $green"\n[V] "$end"Capturas realizadas correctamente."
 }
 
@@ -303,7 +322,7 @@ get_endpoints() {
 
 scan_nuclei(){
     echo -e $red"\n[+]"$end $bold"Comenzando escaneo con Nuclei..."$end
-    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar_$date.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_suspects_domains_$date.txt
+    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_suspects_domains_$date.txt
     nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_domains_crt_sh_$date.txt
 }
 
