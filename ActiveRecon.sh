@@ -44,7 +44,7 @@ check_dependencies(){
     mkdir -p /opt/BugBounty/Programs
     mkdir -p /opt/BugBounty/Targets
 	export PATH="$PATH:/opt/tools_ActiveRecon:/root/go/bin"
-	dependencies=(go unzip pip3 chromium findomain assetfinder amass subfinder httpx ScanOpenRedirect.py gau waybackurls aquatone nuclei zile.py linkfinder.py unfurl subjs dirsearch.py sub404.py)
+	dependencies=(go unzip pip3 chromium findomain assetfinder amass subfinder httpx ScanOpenRedirect.py gau waybackurls aquatone nuclei zile.py linkfinder.py unfurl subjs dirsearch.py subjack)
 	for dependency in "${dependencies[@]}"; do
 		which $dependency > /dev/null 2>&1
 		if [ "$(echo $?)" -ne "0" ]; then
@@ -128,9 +128,9 @@ check_dependencies(){
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					wget -q --show-progress https://github.com/maurosoria/dirsearch/archive/refs/tags/v0.4.0.zip -O /opt/tools_ActiveRecon/dirsearch.zip && unzip -q /opt/tools_ActiveRecon/dirsearch.zip -d /opt/tools_ActiveRecon/ && rm /opt/tools_ActiveRecon/dirsearch.zip && ln -s /opt/tools_ActiveRecon/dirsearch-0.4.0/dirsearch.py /opt/tools_ActiveRecon/dirsearch.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
-				sub404.py)
+				subjack)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					git clone -q https://github.com/r3curs1v3-pr0xy/sub404.git /opt/tools_ActiveRecon/sub404 && pip3 install -r /opt/tools_ActiveRecon/sub404/requirements.txt -q && ln -s /opt/tools_ActiveRecon/sub404/sub404.py /opt/tools_ActiveRecon/sub404.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+                    go install github.com/haccer/subjack@latest &> /dev/null && mkdir -p /src/github.com/haccer/subjack && wget -q "https://raw.githubusercontent.com/haccer/subjack/master/fingerprints.json" -O /src/github.com/haccer/subjack/fingerprints.json echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 			esac
 		else
@@ -149,8 +149,9 @@ main(){
     mkdir -p /opt/BugBounty/Programs/$program/Directories/js_endpoints/
     mkdir -p /opt/BugBounty/Programs/$program/Directories/dirsearch_endpoints/
     mkdir -p /opt/BugBounty/Programs/$program/Images/dominios_crt_sh
-    mkdir -p /opt/BugBounty/Programs/$program/Images/dominios_a_revisar_$date
+    mkdir -p /opt/BugBounty/Programs/$program/Images/dominios_a_revisar
     mkdir -p /opt/BugBounty/Programs/$program/Data/Domains
+    mkdir -p /var/www/html/$program
     cd /opt/BugBounty/Programs/$program/Data/Domains
     get_domains
     get_alive
@@ -198,7 +199,7 @@ get_alive() {
 
 get_subdomain_takeover(){
 	echo -e $red"\n[+]"$end $bold"Escaneo en busqueda de subdomains takeovers"$end
-	python3 /opt/tools_ActiveRecon/sub404/sub404.py -f /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | grep -P "Reading file|Total Unique Subdomain|URL Checked|Vulnerability Possible" | tee -a /opt/BugBounty/Programs/$program/Data/possible_subdomains_takeover.txt
+	subjack -w all_urls.txt -t 100 -timeout 30 -o possible_subdomains_takeover.txt
 }
 
 get_all_urls() {
@@ -294,10 +295,10 @@ new_domains(){
 
 get_aquatone() {
     echo -e $red"\n[+]"$end $bold"Sacando capturas de dominios a revisar..."$end
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000 -chrome-path /snap/bin/chromium
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar_$date -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000 -chrome-path /snap/bin/chromium
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -scan-timeout 500 -screenshot-timeout 50000 -http-timeout 6000 -chrome-path /snap/bin/chromium
-    cp -r /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt /var/www/html
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt -chrome-path $(which chromium)
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar_$date -chrome-path $(which chromium)
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -chrome-path $(which chromium)
+    cp -r /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt /var/www/html/$program
     echo -e $green"\n[V] "$end"Capturas realizadas correctamente."
 }
 
@@ -322,8 +323,8 @@ get_endpoints() {
 
 scan_nuclei(){
     echo -e $red"\n[+]"$end $bold"Comenzando escaneo con Nuclei..."$end
-    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_suspects_domains_$date.txt
-    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt -t $HOME/nuclei-templates/cves/ -o /opt/BugBounty/Programs/$program/Data/nuclei_results_domains_crt_sh_$date.txt
+    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt -o /opt/BugBounty/Programs/$program/Data/nuclei_results_suspects_domains.txt
+    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt -o /opt/BugBounty/Programs/$program/Data/nuclei_results_domains_crt_sh.txt
 }
 
 send_alert1(){
