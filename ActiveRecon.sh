@@ -204,9 +204,13 @@ get_subdomain_takeover(){
 
 get_all_urls() {
     echo -e $red"\n[+]"$end $bold"Escaneo de dominios en Waybackurl, Commoncrawl, Otx y Urlscan. Esto puede demorar bastante..."$end
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | gau --threads 100 --timeout 10 --fp --retries 3 > /opt/BugBounty/Programs/$program/Data/Domains/all_urls.txt
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurls >> /opt/BugBounty/Programs/$program/Data/Domains/all_urls.txt
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | gau --threads 100 --timeout 10 --fp --retries 3 > /opt/BugBounty/Programs/$program/Data/Domains/all_urls
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurls >> /opt/BugBounty/Programs/$program/Data/Domains/all_urls
+    for domain in $(cat $file); do
+        cat all_urls | grep $domain | unfurl format %s://%d%p | grep -vi -P "png|jpg|jpeg|gif|pdf|mp4|svg|ttf|eot|woff|woff2|css" | sort -u >> all_urls.txt
+    done    
     number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/all_urls.txt)
+    rm all_urls
     echo -e $green"\n[V] "$end"URLs obtenidas correctamente. Cantidad de URLs obtenidas: $number_domains"
 }
 
@@ -274,7 +278,7 @@ get_paths() {
         fi
     done
     for host in ${domains[@]}; do
-        dirsearch_file=$(echo $host | sed -E 's/[\.|\/|:]+/_/g').txt
+        dirsearch_file=$(echo "${host##*/}").txt
         python3 /opt/tools_ActiveRecon/dirsearch-0.4.0/dirsearch.py -E -t 50 --plain-text /opt/BugBounty/Programs/$program/Directories/dirsearch_endpoints/$dirsearch_file -u $host -w /opt/tools_ActiveRecon/dirsearch-0.4.0/db/dicc.txt --user-agent="Firefox AppSec" --cookie="$cookies" | grep Target && tput sgr0
     done
     echo -e $green"\n[V] "$end"Busqueda finalizada!"
@@ -295,11 +299,10 @@ new_domains(){
 
 get_aquatone() {
     echo -e $red"\n[+]"$end $bold"Sacando capturas de dominios a revisar..."$end
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos_$date.txt -chrome-path $(which chromium)
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar_$date -chrome-path $(which chromium)
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -chrome-path $(which chromium)
-    cp -r /opt/BugBounty/Programs/$program/Images/ /var/www/html/$program/
-    echo -e $green"\n[V] "$end"Capturas realizadas correctamente."
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos -chrome-path $(which chromium) && echo -e $green"\n[V] "$end"Capturas de dominios_vivos_$date realizadas correctamente."
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar -chrome-path $(which chromium) && echo -e $green"\n[V] "$end"Capturas de dominios_a_revisar realizadas correctamente."
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -chrome-path $(which chromium) && echo -e $green"\n[V] "$end"Capturas de dominios_crt_sh realizadas correctamente."
+    cp -r /opt/BugBounty/Programs/$program/Images/ /var/www/html/$program/   
 }
 
 get_js() {
@@ -314,9 +317,9 @@ get_tokens() {
 
 get_endpoints() {
     echo -e $red"\n[+]"$end $bold"Buscando endpoints a partir de archivos JS"$end
-    for link in $(cat all_jslinks.txt); do
-        links_file=$(echo $link | unfurl format %d%p | sed -E 's/[\.|\/|:]+/_/g').txt
-        python3 /opt/tools_ActiveRecon/LinkFinder/linkfinder.py -i $link -o cli >> /opt/BugBounty/Programs/$program/Directories/js_endpoints/$links_file
+    for url in $(cat all_jslinks.txt); do
+        filename=$(echo "${url##*/}").txt
+        python3 /opt/tools_ActiveRecon/LinkFinder/linkfinder.py -i $url -o cli >> /opt/BugBounty/Programs/$program/Directories/js_endpoints/$filename
     done
     echo -e $green"\n[V] "$end"Endpoints obtenidos correctamente."
 }
