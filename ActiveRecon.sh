@@ -22,8 +22,9 @@ by: @p0ch4t - <joaquin.pochat@istea.com.ar>
 "$end
 
 # Environment Variables
-bot_token=$(printenv bot_telegram_token)
-chat_ID=$(printenv chat_ID)
+bot_token=$(printenv bot_telegram_token) ## Cree una variable de entorno con su bot token de telegram
+chat_ID=$(printenv chat_ID) ## Cree una variable de entorno con su chat_ID de telegram
+WPSCAN_API_TOKEN=$(printenv WPSCAN_API_TOKEN) ## Cree una variable de entorno con su API-TOKEN de WpScan
 date=$(date '-I')
 cookies='' ## --> Setee sus cookies: Ej: session_id=test123;privelege=admin
 authorization_token='' ## --> Setee su Authorization Token. Ej: Bearer ey1231234....
@@ -44,26 +45,29 @@ check_dependencies(){
     mkdir -p /opt/BugBounty/Programs
     mkdir -p /opt/BugBounty/Targets
 	export PATH="$PATH:/opt/tools_ActiveRecon:/root/go/bin"
-	dependencies=(go unzip pip3 chromium findomain assetfinder amass subfinder httpx ScanOpenRedirect.py gau waybackurls aquatone nuclei zile.py linkfinder.py unfurl subjs dirsearch.py subjack)
+	dependencies=(docker go unzip pip3 chromium findomain assetfinder amass subfinder httpx ScanOpenRedirect.py gau waybackurls aquatone nuclei zile.py linkfinder.py unfurl subjs dirsearch.py subjack)
 	for dependency in "${dependencies[@]}"; do
 		which $dependency > /dev/null 2>&1
 		if [ "$(echo $?)" -ne "0" ]; then
 			echo -e $red"[X] $dependency "$end"no esta instalado."
 			case $dependency in
+                docker)
+                    snap install docker &> /dev/null && docker pull wpscanteam/wpscan &> /dev/null
+                    ;;            
                 go)
-                    snap install golang --classic &> /dev/null && echo "export PATH=$PATH:/root/go/bin" >> /root/.bashrc && echo -e $green"[+] "$end"Golang instalado!"
+                    snap install golang --classic &> /dev/null && export PATH=$PATH:/root/go/bin && echo 'export PATH=$PATH:/root/go/bin' >> /root/.bashrc
                     ;;
                 unzip)
-                    apt install unzip -y &> /dev/null && echo -e $green"[+] "$end"Unzip instalado!"
+                    apt install unzip -y &> /dev/null
                     ;;
                 pip3)
-                    apt install python3-pip -y &> /dev/null && echo -e $green"[+] "$end"pip3 instalado!"
+                    apt install python3-pip -y &> /dev/null
                     ;;
                 chromium)
-                    snap install chromium && echo -e $green"[+] "$end"pip3 instalado!"
+                    snap install chromium
                     ;;
                 apache2)
-                    apt install apache2 -y &> /dev/null && echo "DirectoryIndex aquatone_report.html" >> "/etc/apache2/apache2.conf" && systemctl restart apache2 && echo -e $green"[+] "$end"Apache2 instalado y funcionando!"
+                    apt install apache2 -y &> /dev/null && echo "DirectoryIndex aquatone_report.html" >> "/etc/apache2/apache2.conf" && systemctl restart apache2
                     # Permite el tráfico desde el firewall local
                     iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
                     netfilter-persistent save
@@ -158,10 +162,11 @@ main(){
     get_subdomain_takeover
     get_all_urls
     get_suspects_files
+    scan_wordpress_domains
     get_open_redirects
     scan_open_redirect
     get_especial_domains
-    if [[ $TOKEN_SESSION ]]; then
+    if [[ $WORD_RESPONSE ]]; then
         find_token_session_on_response
     fi
     get_paths
@@ -182,7 +187,10 @@ get_domains() {
     subfinder -dL $file -o subfinder_domains.txt
     sort -u *_domains.txt -o subdomains.txt
     cat subdomains.txt | rev | cut -d . -f 1-3 | rev | sort -u | tee root_subdomains.txt
-    cat *.txt | unfurl domains | sort -u > all_domains.txt
+    cat *.txt | unfurl domains | sort -u > all_domains
+    for domain in $(cat $file); do
+        cat all_domains | grep $domain | unfurl format %s://%d%p | sort -u >> all_domains.txt
+    done
     find . -type f -not -name 'all_domains.txt' -delete
     number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/all_domains.txt)
     echo -e $green"\n[V] "$end"Escaneo finalizado. Dominios obtenidos: $number_domains"
@@ -208,7 +216,7 @@ get_all_urls() {
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurls >> /opt/BugBounty/Programs/$program/Data/Domains/all_urls
     for domain in $(cat $file); do
         cat all_urls | grep $domain | unfurl format %s://%d%p | grep -vi -P "png|jpg|jpeg|gif|pdf|mp4|svg|ttf|eot|woff|woff2|css" | sort -u >> all_urls.txt
-    done    
+    done
     number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/all_urls.txt)
     rm all_urls
     echo -e $green"\n[V] "$end"URLs obtenidas correctamente. Cantidad de URLs obtenidas: $number_domains"
@@ -223,6 +231,21 @@ get_suspects_files(){
     done
     sort -u /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt -o /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt
     rm -f dominios_a_analizar
+    echo -e $green"\n[V] "$end"Escaneo finalizado!"
+}
+
+scan_wordpress_domains(){
+    echo -e $red"\n[+]"$end $bold"Iniciando reconocimiento y escaneo de sitios Wordpress"$end
+    cat dominios_a_revisar.txt | unfurl format %s://%d | httpx -silent -tech-detect | grep -i Wordpress | cut -d " " -f1 > revision_domains
+    cat revision_domains all_domains.txt | sort -u | httpx -silent -tech-detect | grep -i Wordpress | cut -d " " -f1 > wordpress_domains.txt
+    for url in $(cat wordpress_domains.txt); do
+        if [[ $WPSCAN_API_TOKEN ]]; then
+            docker run -it --rm wpscanteam/wpscan --url $url --exclude-content-based --force --random-user-agent --api-token $WPSCAN_API_TOKEN --enumerate | tee -a wordpress_scan.txt
+        else
+            docker run -it --rm wpscanteam/wpscan --url $url --exclude-content-based --force --random-user-agent --enumerate | tee -a wordpress_scan.txt
+        fi
+    done
+    rm revision_domains
     echo -e $green"\n[V] "$end"Escaneo finalizado!"
 }
 
@@ -261,7 +284,9 @@ get_especial_domains(){
         name=$(curl -s 'https://www.digicert.com/api/check-host.php' --data-raw "host=$dominio" | grep -E -oh "Organization = [A-Za-z0-9. ]+" | cut -d "=" -f2 | sed 's/^[[:space:]]//g')
         if [[ ! "${organization_names[*]}" =~ "${name}" ]]; then
             echo "$name - $dominio"
-            echo $dominio >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
+            #echo $dominio >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
+            name=$(echo $name | sed 's/\s/\+/g')
+            echo "https://crt.sh/?q=$name&dominio_encontrado=$domain" >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
             organization_names+=$name
         fi
     done
@@ -274,7 +299,7 @@ get_paths() {
     for url in $(cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt); do
         domain=$(echo $url | unfurl format %d)
         if [[ ! "${domains[*]}" =~ "${domain}" ]]; then
-            domains+=$domain
+            domains+="$domain\n"
         fi
     done
     for host in ${domains[@]}; do
@@ -298,11 +323,11 @@ new_domains(){
 }
 
 get_aquatone() {
-    echo -e $red"\n[+]"$end $bold"Sacando capturas de dominios a revisar..."$end
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos -chrome-path $(which chromium) && echo -e $green"\n[V] "$end"Capturas de dominios_vivos_$date realizadas correctamente."
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar -chrome-path $(which chromium) && echo -e $green"\n[V] "$end"Capturas de dominios_a_revisar realizadas correctamente."
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -chrome-path $(which chromium) && echo -e $green"\n[V] "$end"Capturas de dominios_crt_sh realizadas correctamente."
-    cp -r /opt/BugBounty/Programs/$program/Images/ /var/www/html/$program/   
+    echo -e $red"\n[+]"$end $bold"Sacando capturas de dominios..."$end
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos -chrome-path /snap/bin/chromium && echo -e $green"\n[V] "$end"Capturas de dominios_vivos_$date realizadas correctamente."
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar -chrome-path /snap/bin/chromium && echo -e $green"\n[V] "$end"Capturas de dominios_a_revisar realizadas correctamente."
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -chrome-path /snap/bin/chromium && echo -e $green"\n[V] "$end"Capturas de dominios_crt_sh realizadas correctamente."
+    cp -r /opt/BugBounty/Programs/$program/Images/* /var/www/html/$program/
 }
 
 get_js() {
@@ -327,7 +352,6 @@ get_endpoints() {
 scan_nuclei(){
     echo -e $red"\n[+]"$end $bold"Comenzando escaneo con Nuclei..."$end
     nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt -o /opt/BugBounty/Programs/$program/Data/nuclei_results_suspects_domains.txt
-    nuclei -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt -o /opt/BugBounty/Programs/$program/Data/nuclei_results_domains_crt_sh.txt
 }
 
 send_alert1(){
