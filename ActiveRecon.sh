@@ -27,8 +27,8 @@ chat_ID=$(printenv chat_ID) ## Cree una variable de entorno con su chat_ID de te
 WPSCAN_API_TOKEN=$(printenv WPSCAN_API_TOKEN) ## Cree una variable de entorno con su API-TOKEN de WpScan
 date=$(date '-I')
 cookies='' ## --> Setee sus cookies: Ej: session_id=test123;privelege=admin
-authorization_token='' ## --> Setee su Authorization Token. Ej: Bearer ey1231234....
-WORD_RESPONSE='' ## --> Setee una palabra. Esto sirve para buscar tokens de sesion en respuestas del servidor (para usar con XSS)
+authorization_token='Bearer ft.gAAAAABjzw7n-SZwJLbJFzV_FQv2Q6IQEm21achfnK3-OXb1ifq3oy9vLQpQof5GmcYRAzB1VHbBwlM2g_ENH4dRCSY9cAsEihr2YKwBNFdtQWut7jMnn8R2ddxnjOeBPHwZXjoyznRF0VuyNn00f1FW_b2UOp3A8XOWr7EGH3Vp7WlcKRMDT2WU1j5QfGa3unx5fVquLkMf20pWDEU-kDCH2cMFs3q-CjQp5ZIFjBRS5S7jSLB0SAX3Srq0eqSrStujy79OX36BWHlmoXKkWXzoqJEfW7ivaPhxia4hjfQxKCXzf3pvRc7EAETY90CASZK7SbEgxPGCoMluauz2xpcrP3eg3d62sgjql6rbxKq_R-yknCJOheA=' ## --> Setee su Authorization Token. Ej: Bearer ey1231234....
+WORD_RESPONSE='ft.gAAAAABjzw7n-SZwJLbJFzV_FQv2Q6IQEm21achfnK3-OXb1ifq3oy9vLQpQof5GmcYRAzB1VHbBwlM2g_ENH4dRCSY9cAsEihr2YKwBNFdtQWut7jMnn8R2ddxnjOeBPHwZXjoyznRF0VuyNn00f1FW_b2UOp3A8XOWr7EGH3Vp7WlcKRMDT2WU1j5QfGa3unx5fVquLkMf20pWDEU-kDCH2cMFs3q-CjQp5ZIFjBRS5S7jSLB0SAX3Srq0eqSrStujy79OX36BWHlmoXKkWXzoqJEfW7ivaPhxia4hjfQxKCXzf3pvRc7EAETY90CASZK7SbEgxPGCoMluauz2xpcrP3eg3d62sgjql6rbxKq_R-yknCJOheA=' ## --> Setee una palabra. Esto sirve para buscar tokens de sesion en respuestas del servidor (para usar con XSS)
 
 # Functions
 
@@ -45,7 +45,7 @@ check_dependencies(){
     mkdir -p /opt/BugBounty/Programs
     mkdir -p /opt/BugBounty/Targets
 	export PATH="$PATH:/opt/tools_ActiveRecon:/root/go/bin"
-	dependencies=(docker go unzip pip3 chromium findomain assetfinder amass subfinder httpx ScanOpenRedirect.py gau waybackurls aquatone nuclei zile.py linkfinder.py unfurl subjs dirsearch.py subjack)
+	dependencies=(docker go unzip pip3 chromium findomain assetfinder amass subfinder httpx ScanOpenRedirect.py gau waybackurls aquatone nuclei zile.py linkfinder.py unfurl subjs dirsearch subjack)
 	for dependency in "${dependencies[@]}"; do
 		which $dependency > /dev/null 2>&1
 		if [ "$(echo $?)" -ne "0" ]; then
@@ -128,13 +128,13 @@ check_dependencies(){
 					echo -e "${yellow}[..]${end} Instalando $dependency"
 					go install github.com/lc/subjs@latest &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
-				dirsearch.py)
+				dirsearch)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-					wget -q --show-progress https://github.com/maurosoria/dirsearch/archive/refs/tags/v0.4.0.zip -O /opt/tools_ActiveRecon/dirsearch.zip && unzip -q /opt/tools_ActiveRecon/dirsearch.zip -d /opt/tools_ActiveRecon/ && rm /opt/tools_ActiveRecon/dirsearch.zip && ln -s /opt/tools_ActiveRecon/dirsearch-0.4.0/dirsearch.py /opt/tools_ActiveRecon/dirsearch.py && echo -e "${green}[V] $dependency${end} instalado correctamente!"
+					pip3 install dirsearch -q && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 				subjack)
 					echo -e "${yellow}[..]${end} Instalando $dependency"
-                    go install github.com/haccer/subjack@latest &> /dev/null && mkdir -p /src/github.com/haccer/subjack && wget -q "https://raw.githubusercontent.com/haccer/subjack/master/fingerprints.json" -O /src/github.com/haccer/subjack/fingerprints.json echo -e "${green}[V] $dependency${end} instalado correctamente!"
+                    go install github.com/haccer/subjack@latest &> /dev/null && mkdir -p /src/github.com/haccer/subjack && wget -q "https://raw.githubusercontent.com/haccer/subjack/master/fingerprints.json" -O /src/github.com/haccer/subjack/fingerprints.json && echo -e "${green}[V] $dependency${end} instalado correctamente!"
 					;;
 			esac
 		else
@@ -181,17 +181,17 @@ main(){
 
 get_domains() {
     echo -e $red"\n[+]"$end $bold"Escaneo de dominios..."$end
-    findomain -f $file -r -u findomain_domains.txt
-    cat $file | assetfinder --subs-only | tee -a assetfinder_domains.txt
-    amass enum -df $file -passive -o ammas_passive_domains.txt
-    subfinder -dL $file -o subfinder_domains.txt
-    sort -u *_domains.txt -o subdomains.txt
-    cat subdomains.txt | rev | cut -d . -f 1-3 | rev | sort -u | tee root_subdomains.txt
-    cat *.txt | unfurl domains | sort -u > all_domains
+    findomain -f $file -r -u findomain_domains
+    cat $file | assetfinder --subs-only | tee -a assetfinder_domains
+    amass enum -df $file -passive -o ammas_passive_domains
+    subfinder -dL $file -o subfinder_domains
+    sort -u *_domains -o subdomains
+    cat subdomains | rev | cut -d . -f 1-3 | rev | sort -u | tee root_subdomains
+    cat * | unfurl domains | sort -u > all_domains
     for domain in $(cat $file); do
         cat all_domains | grep $domain | unfurl format %s://%d%p | sort -u >> all_domains.txt
     done
-    find . -type f -not -name 'all_domains.txt' -delete
+    find . -type f -not -name '*.txt' -delete
     number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/all_domains.txt)
     echo -e $green"\n[V] "$end"Escaneo finalizado. Dominios obtenidos: $number_domains"
 }
@@ -286,7 +286,7 @@ get_especial_domains(){
             echo "$name - $dominio"
             #echo $dominio >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
             name=$(echo $name | sed 's/\s/\+/g')
-            echo "https://crt.sh/?q=$name&dominio_encontrado=$domain" >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
+            echo "https://crt.sh/?q=$name&dominio_encontrado=$dominio" >> /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
             organization_names+=$name
         fi
     done
@@ -299,12 +299,12 @@ get_paths() {
     for url in $(cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt); do
         domain=$(echo $url | unfurl format %d)
         if [[ ! "${domains[*]}" =~ "${domain}" ]]; then
-            domains+="$domain\n"
+            domains+="$domain "
         fi
     done
     for host in ${domains[@]}; do
         dirsearch_file=$(echo "${host##*/}").txt
-        python3 /opt/tools_ActiveRecon/dirsearch-0.4.0/dirsearch.py -E -t 50 --plain-text /opt/BugBounty/Programs/$program/Directories/dirsearch_endpoints/$dirsearch_file -u $host -w /opt/tools_ActiveRecon/dirsearch-0.4.0/db/dicc.txt --user-agent="Firefox AppSec" --cookie="$cookies" | grep Target && tput sgr0
+        dirsearch -e php,aspx,jsp,pl,rb -t 50 -u $host --user-agent="Firefox AppSec" --cookie="$cookies" --header="Authorization: $authorization_token" --format plain -o /opt/BugBounty/Programs/$program/Data/Directories/$dirsearch_file | grep Target && tput sgr0
     done
     echo -e $green"\n[V] "$end"Busqueda finalizada!"
 }
@@ -314,7 +314,7 @@ new_domains(){
     shopt -s extglob 2>/dev/null && result=$(cat !(/opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt) 2>/dev/null)
     lista_dominios=$(cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt)
     for dominio in $lista_dominios; do
-         echo $result | grep $dominio > /dev/null 2>&1
+        echo $result | grep $dominio > /dev/null 2>&1
         if [ "$(echo $?)" -ne "0" ]; then
             echo $dominio | tee -a /opt/BugBounty/Programs/$program/Data/Domains/nuevos_dominios_$date.txt
         fi
@@ -327,6 +327,7 @@ get_aquatone() {
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_vivos -chrome-path /snap/bin/chromium && echo -e $green"\n[V] "$end"Capturas de dominios_vivos_$date realizadas correctamente."
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_a_revisar.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_a_revisar -chrome-path /snap/bin/chromium && echo -e $green"\n[V] "$end"Capturas de dominios_a_revisar realizadas correctamente."
     cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt | aquatone --ports xlarge -out /opt/BugBounty/Programs/$program/Images/dominios_crt_sh -chrome-path /snap/bin/chromium && echo -e $green"\n[V] "$end"Capturas de dominios_crt_sh realizadas correctamente."
+    rm -rf /var/www/html/$program/*
     cp -r /opt/BugBounty/Programs/$program/Images/* /var/www/html/$program/
 }
 
