@@ -27,8 +27,8 @@ chat_ID=$(printenv chat_ID) ## Cree una variable de entorno con su chat_ID de te
 WPSCAN_API_TOKEN=$(printenv WPSCAN_API_TOKEN) ## Cree una variable de entorno con su API-TOKEN de WpScan
 date=$(date '-I')
 cookies='' ## --> Setee sus cookies: Ej: session_id=test123;privelege=admin
-authorization_token='Bearer ft.gAAAAABjzw7n-SZwJLbJFzV_FQv2Q6IQEm21achfnK3-OXb1ifq3oy9vLQpQof5GmcYRAzB1VHbBwlM2g_ENH4dRCSY9cAsEihr2YKwBNFdtQWut7jMnn8R2ddxnjOeBPHwZXjoyznRF0VuyNn00f1FW_b2UOp3A8XOWr7EGH3Vp7WlcKRMDT2WU1j5QfGa3unx5fVquLkMf20pWDEU-kDCH2cMFs3q-CjQp5ZIFjBRS5S7jSLB0SAX3Srq0eqSrStujy79OX36BWHlmoXKkWXzoqJEfW7ivaPhxia4hjfQxKCXzf3pvRc7EAETY90CASZK7SbEgxPGCoMluauz2xpcrP3eg3d62sgjql6rbxKq_R-yknCJOheA=' ## --> Setee su Authorization Token. Ej: Bearer ey1231234....
-WORD_RESPONSE='ft.gAAAAABjzw7n-SZwJLbJFzV_FQv2Q6IQEm21achfnK3-OXb1ifq3oy9vLQpQof5GmcYRAzB1VHbBwlM2g_ENH4dRCSY9cAsEihr2YKwBNFdtQWut7jMnn8R2ddxnjOeBPHwZXjoyznRF0VuyNn00f1FW_b2UOp3A8XOWr7EGH3Vp7WlcKRMDT2WU1j5QfGa3unx5fVquLkMf20pWDEU-kDCH2cMFs3q-CjQp5ZIFjBRS5S7jSLB0SAX3Srq0eqSrStujy79OX36BWHlmoXKkWXzoqJEfW7ivaPhxia4hjfQxKCXzf3pvRc7EAETY90CASZK7SbEgxPGCoMluauz2xpcrP3eg3d62sgjql6rbxKq_R-yknCJOheA=' ## --> Setee una palabra. Esto sirve para buscar tokens de sesion en respuestas del servidor (para usar con XSS)
+authorization_token='' ## --> Setee su Authorization Token. Ej: Bearer ey1231234....
+WORD_RESPONSE='' ## --> Setee una palabra. Esto sirve para buscar tokens de sesion en respuestas del servidor (para usar con XSS)
 
 # Functions
 
