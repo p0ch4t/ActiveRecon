@@ -27,8 +27,8 @@ chat_ID=$(printenv chat_ID) ## Cree una variable de entorno con su chat_ID de te
 WPSCAN_API_TOKEN=$(printenv WPSCAN_API_TOKEN) ## Cree una variable de entorno con su API-TOKEN de WpScan
 date=$(date '-I')
 cookies='' ## --> Setee sus cookies: Ej: session_id=test123;privelege=admin
-authorization_token='Bearer ft.gAAAAABjzw7n-SZwJLbJFzV_FQv2Q6IQEm21achfnK3-OXb1ifq3oy9vLQpQof5GmcYRAzB1VHbBwlM2g_ENH4dRCSY9cAsEihr2YKwBNFdtQWut7jMnn8R2ddxnjOeBPHwZXjoyznRF0VuyNn00f1FW_b2UOp3A8XOWr7EGH3Vp7WlcKRMDT2WU1j5QfGa3unx5fVquLkMf20pWDEU-kDCH2cMFs3q-CjQp5ZIFjBRS5S7jSLB0SAX3Srq0eqSrStujy79OX36BWHlmoXKkWXzoqJEfW7ivaPhxia4hjfQxKCXzf3pvRc7EAETY90CASZK7SbEgxPGCoMluauz2xpcrP3eg3d62sgjql6rbxKq_R-yknCJOheA=' ## --> Setee su Authorization Token. Ej: Bearer ey1231234....
-WORD_RESPONSE='ft.gAAAAABjzw7n-SZwJLbJFzV_FQv2Q6IQEm21achfnK3-OXb1ifq3oy9vLQpQof5GmcYRAzB1VHbBwlM2g_ENH4dRCSY9cAsEihr2YKwBNFdtQWut7jMnn8R2ddxnjOeBPHwZXjoyznRF0VuyNn00f1FW_b2UOp3A8XOWr7EGH3Vp7WlcKRMDT2WU1j5QfGa3unx5fVquLkMf20pWDEU-kDCH2cMFs3q-CjQp5ZIFjBRS5S7jSLB0SAX3Srq0eqSrStujy79OX36BWHlmoXKkWXzoqJEfW7ivaPhxia4hjfQxKCXzf3pvRc7EAETY90CASZK7SbEgxPGCoMluauz2xpcrP3eg3d62sgjql6rbxKq_R-yknCJOheA=' ## --> Setee una palabra. Esto sirve para buscar tokens de sesion en respuestas del servidor (para usar con XSS)
+authorization_token='' ## --> Setee su Authorization Token. Ej: Bearer ey1231234....
+WORD_RESPONSE='' ## --> Setee una palabra. Esto sirve para buscar tokens de sesion en respuestas del servidor (para usar con XSS)
 
 # Functions
 
@@ -52,22 +52,22 @@ check_dependencies(){
 			echo -e $red"[X] $dependency "$end"no esta instalado."
 			case $dependency in
                 docker)
-                    snap install docker &> /dev/null && docker pull wpscanteam/wpscan &> /dev/null
+                    snap install docker &> /dev/null && docker pull wpscanteam/wpscan &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
                     ;;            
                 go)
-                    snap install golang --classic &> /dev/null && export PATH=$PATH:/root/go/bin && echo 'export PATH=$PATH:/root/go/bin' >> /root/.bashrc
+                    snap install golang --classic &> /dev/null && export PATH=$PATH:/root/go/bin && echo 'export PATH=$PATH:/root/go/bin' >> /root/.bashrc && echo -e "${green}[V] $dependency${end} instalado correctamente!"
                     ;;
                 unzip)
-                    apt install unzip -y &> /dev/null
+                    apt install unzip -y &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
                     ;;
                 pip3)
-                    apt install python3-pip -y &> /dev/null
+                    apt install python3-pip -y &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
                     ;;
                 chromium)
-                    snap install chromium
+                    snap install chromium &> /dev/null && echo -e "${green}[V] $dependency${end} instalado correctamente!"
                     ;;
                 apache2)
-                    apt install apache2 -y &> /dev/null && echo "DirectoryIndex aquatone_report.html" >> "/etc/apache2/apache2.conf" && systemctl restart apache2
+                    apt install apache2 -y &> /dev/null && echo "DirectoryIndex aquatone_report.html" >> "/etc/apache2/apache2.conf" && systemctl restart apache2 && echo -e "${green}[V] $dependency${end} instalado correctamente!"
                     # Permite el tráfico desde el firewall local
                     iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
                     netfilter-persistent save
@@ -199,8 +199,8 @@ get_domains() {
 get_alive() {
     echo -e $red"\n[+]"$end $bold"Escaneo de dominios vivos..."$end
 
-    cat all_domains.txt | httpx -t 200 -silent -timeout 3 -H "User-Agent: Firefox AppSec" -H "Cookie: $cookies" -H "Authorization: $authorization_token" > /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt
-    number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt)
+    cat all_domains.txt | httpx -t 200 -silent -timeout 3 -H "User-Agent: Firefox AppSec" -H "Cookie: $cookies" -H "Authorization: $authorization_token" > /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos.txt
+    number_domains=$(wc -l /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos.txt)
 
     echo -e $green"\n[V] "$end"Escaneo finalizado. Dominios vivos: $number_domains"
 }
@@ -212,8 +212,8 @@ get_subdomain_takeover(){
 
 get_all_urls() {
     echo -e $red"\n[+]"$end $bold"Escaneo de dominios en Waybackurl, Commoncrawl, Otx y Urlscan. Esto puede demorar bastante..."$end
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | gau --threads 100 --timeout 10 --fp --retries 3 > /opt/BugBounty/Programs/$program/Data/Domains/all_urls
-    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt | waybackurls >> /opt/BugBounty/Programs/$program/Data/Domains/all_urls
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos.txt | gau --threads 100 --timeout 10 --fp --retries 3 > /opt/BugBounty/Programs/$program/Data/Domains/all_urls
+    cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos.txt | waybackurls >> /opt/BugBounty/Programs/$program/Data/Domains/all_urls
     for domain in $(cat $file); do
         cat all_urls | grep $domain | unfurl format %s://%d%p | grep -vi -P "png|jpg|jpeg|gif|pdf|mp4|svg|ttf|eot|woff|woff2|css" | sort -u >> all_urls.txt
     done
@@ -240,9 +240,9 @@ scan_wordpress_domains(){
     cat revision_domains all_domains.txt | sort -u | httpx -silent -tech-detect | grep -i Wordpress | cut -d " " -f1 > wordpress_domains.txt
     for url in $(cat wordpress_domains.txt); do
         if [[ $WPSCAN_API_TOKEN ]]; then
-            docker run -it --rm wpscanteam/wpscan --url $url --exclude-content-based --force --random-user-agent --api-token $WPSCAN_API_TOKEN --enumerate | tee -a wordpress_scan.txt
+            docker run -it --rm wpscanteam/wpscan --url $url --update --exclude-content-based --force --random-user-agent --api-token $WPSCAN_API_TOKEN --enumerate | tee -a wordpress_scan.txt
         else
-            docker run -it --rm wpscanteam/wpscan --url $url --exclude-content-based --force --random-user-agent --enumerate | tee -a wordpress_scan.txt
+            docker run -it --rm wpscanteam/wpscan --url $url --update --exclude-content-based --force --random-user-agent --enumerate | tee -a wordpress_scan.txt
         fi
     done
     rm revision_domains
@@ -280,7 +280,7 @@ get_especial_domains(){
     rm -f /opt/BugBounty/Programs/$program/Data/Domains/dominios_crt_sh.txt
     organization_names=()
     echo -e $yellow"\n[*]"$end $bold"Certificados:"$end
-    for dominio in $(cat "/opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt"); do
+    for dominio in $(cat "/opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos.txt"); do
         name=$(curl -s 'https://www.digicert.com/api/check-host.php' --data-raw "host=$dominio" | grep -E -oh "Organization = [A-Za-z0-9. ]+" | cut -d "=" -f2 | sed 's/^[[:space:]]//g')
         if [[ ! "${organization_names[*]}" =~ "${name}" ]]; then
             echo "$name - $dominio"
@@ -311,15 +311,14 @@ get_paths() {
 
 new_domains(){
     echo -e $red"\n[+]"$end $bold"Buscando diferencias de escaneos anteriores..."$end
-    shopt -s extglob 2>/dev/null && result=$(cat !(/opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt) 2>/dev/null)
-    lista_dominios=$(cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt)
-    for dominio in $lista_dominios; do
-        echo $result | grep $dominio > /dev/null 2>&1
+    for dominio in $(cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos.txt | unfurl format %d); do
+        cat /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_20* | sort -u | grep $dominio > /dev/null
         if [ "$(echo $?)" -ne "0" ]; then
             echo $dominio | tee -a /opt/BugBounty/Programs/$program/Data/Domains/nuevos_dominios_$date.txt
         fi
     done
-    ls nuevos_dominios_$date.txt > /dev/null 2>&1 && echo -e $green"[V] "$end"Diferencias encontradas!." && send_alert1
+    ls /opt/BugBounty/Programs/$program/Data/Domains/nuevos_dominios_$date.txt > /dev/null 2>&1 && echo -e $green"[V] "$end"Diferencias encontradas!." && send_alert1
+    mv /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos.txt /opt/BugBounty/Programs/$program/Data/Domains/dominios_vivos_$date.txt
 }
 
 get_aquatone() {
